@@ -57,7 +57,7 @@ const ProductDetail = () => {
       <Header />
       
       {/* Product Details */}
-      <section className="container px-4 md:px-6 py-8 md:py-12 pt-24">
+      <section className="container px-4 md:px-6 py-8 md:py-12 pt-20 md:pt-24 pb-20 md:pb-12">
         <div className="grid md:grid-cols-2 gap-8 md:gap-12">
           {/* Image Gallery */}
           <div className="space-y-4">
@@ -142,33 +142,33 @@ const ProductDetail = () => {
             {/* Quantity Selector */}
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <span className="text-sm font-medium">Quantity:</span>
+                <span className="text-sm md:text-base font-medium">Quantity:</span>
                 <div className="flex items-center gap-3 craft-card px-4 py-2 rounded-lg">
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={decrementQuantity}
-                    className="h-8 w-8"
+                    className="h-10 w-10 md:h-8 md:w-8 touch-manipulation"
                   >
-                    <Minus className="w-4 h-4" />
+                    <Minus className="w-5 h-5 md:w-4 md:h-4" />
                   </Button>
-                  <span className="font-semibold w-8 text-center">{quantity}</span>
+                  <span className="font-semibold w-12 md:w-8 text-center text-base md:text-sm">{quantity}</span>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={incrementQuantity}
-                    className="h-8 w-8"
+                    className="h-10 w-10 md:h-8 md:w-8 touch-manipulation"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-5 h-5 md:w-4 md:h-4" />
                   </Button>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   size="lg"
-                  className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold py-6 text-lg rounded-xl shadow-[0_10px_40px_-10px_hsl(340_70%_70%_/_0.25)] hover:shadow-[0_20px_60px_-15px_hsl(340_70%_70%_/_0.35)] transition-all duration-500 hover:-translate-y-1 shimmer"
+                  className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold py-4 md:py-6 text-base md:text-lg rounded-xl shadow-[0_10px_40px_-10px_hsl(340_70%_70%_/_0.25)] hover:shadow-[0_20px_60px_-15px_hsl(340_70%_70%_/_0.35)] transition-all duration-500 hover:-translate-y-1 shimmer touch-manipulation min-h-[48px]"
                 >
                   <ShoppingBag className="w-5 h-5 mr-2" />
                   Add to Cart
@@ -176,7 +176,7 @@ const ProductDetail = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="px-6 py-6 rounded-xl border-2 hover:bg-primary/10"
+                  className="px-6 py-4 md:py-6 rounded-xl border-2 hover:bg-primary/10 touch-manipulation min-h-[48px] min-w-[48px]"
                 >
                   <Heart className="w-5 h-5" />
                 </Button>

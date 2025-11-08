@@ -146,7 +146,7 @@ const AllProducts = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-dainty-cream via-dainty-pink/5 to-dainty-blue/5">
       <Header />
-      <div className="container px-4 md:px-6 py-8 md:py-12 pt-24">
+      <div className="container px-4 md:px-6 py-8 md:py-12 pt-20 md:pt-24 pb-20 md:pb-12">
         {/* Header */}
         <div className="text-center mb-8 md:mb-12">
           <h1 className="font-playfair text-3xl sm:text-4xl md:text-5xl font-bold text-dainty-gray mb-4">

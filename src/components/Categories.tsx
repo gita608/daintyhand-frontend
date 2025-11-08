@@ -37,15 +37,6 @@ const Categories = () => {
   return (
     <section className="py-12 md:py-20 bg-background">
       <div className="container px-4 md:px-6">
-        <div className="text-center mb-12 md:mb-16">
-          <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-dainty-gray mb-4 md:mb-6">
-            Our Craft Categories
-          </h2>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
-            Each piece is thoughtfully created with premium materials and meticulous attention to detail
-          </p>
-        </div>
-        
         {/* Mobile: Horizontal scroll */}
         <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory hide-scrollbar md:hidden">
           {categories.map((category) => (

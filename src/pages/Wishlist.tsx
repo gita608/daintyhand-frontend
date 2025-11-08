@@ -58,7 +58,7 @@ const Wishlist = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-dainty-cream via-white to-dainty-pink/5">
       <Header />
-      <div className="container mx-auto px-4 py-8 pt-24">
+      <div className="container mx-auto px-4 py-8 pt-20 md:pt-24 pb-20 md:pb-8">
         <div className="mb-8">
           <h1 className="font-playfair text-4xl md:text-5xl font-bold text-dainty-gray mb-2">
             My Wishlist

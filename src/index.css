@@ -131,6 +131,21 @@
     display: none;
   }
   
+  /* Mobile touch optimization */
+  .touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Safe area support for notched devices */
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .pb-safe {
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  }
+  
   .decorative-dots {
     background-image: radial-gradient(circle, hsl(340 82% 80% / 0.15) 1px, transparent 1px);
     background-size: 24px 24px;

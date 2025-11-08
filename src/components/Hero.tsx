@@ -1,4 +1,5 @@
 
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowDown, Sparkles } from "lucide-react";
 
@@ -44,19 +45,23 @@ const Hero = () => {
           </p>
           
           <div className="flex flex-col gap-3 sm:gap-4 justify-center items-center mb-20 md:mb-24 px-4">
-            <Button 
-              size="lg" 
-              className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 sm:px-10 py-5 sm:py-6 text-base sm:text-lg rounded-2xl shadow-[0_10px_40px_-10px_hsl(340_70%_70%_/_0.25)] hover:shadow-[0_20px_60px_-15px_hsl(340_70%_70%_/_0.35)] transition-all duration-500 hover:-translate-y-1 shimmer"
-            >
-              Explore Collection
-            </Button>
-            <Button 
-              variant="outline" 
-              size="lg"
-              className="w-full sm:w-auto border-2 border-dainty-blue-dark/50 text-dainty-blue-dark hover:bg-dainty-blue-dark hover:text-white hover:border-dainty-blue-dark px-8 sm:px-10 py-5 sm:py-6 text-base sm:text-lg rounded-2xl transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_10px_40px_-10px_hsl(200_60%_75%_/_0.3)]"
-            >
-              Custom Orders
-            </Button>
+            <Link to="/products" className="w-full sm:w-auto">
+              <Button 
+                size="lg" 
+                className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold px-8 sm:px-10 py-5 sm:py-6 text-base sm:text-lg rounded-2xl shadow-[0_10px_40px_-10px_hsl(340_70%_70%_/_0.25)] hover:shadow-[0_20px_60px_-15px_hsl(340_70%_70%_/_0.35)] transition-all duration-500 hover:-translate-y-1 shimmer"
+              >
+                Explore Collection
+              </Button>
+            </Link>
+            <Link to="/custom-order" className="w-full sm:w-auto">
+              <Button 
+                variant="outline" 
+                size="lg"
+                className="w-full sm:w-auto border-2 border-dainty-blue-dark/50 text-dainty-blue-dark hover:bg-dainty-blue-dark hover:text-white hover:border-dainty-blue-dark px-8 sm:px-10 py-5 sm:py-6 text-base sm:text-lg rounded-2xl transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_10px_40px_-10px_hsl(200_60%_75%_/_0.3)]"
+              >
+                Custom Orders
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

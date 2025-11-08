@@ -8,8 +8,10 @@ import ProductDetail from "./pages/ProductDetail";
 import AllProducts from "./pages/AllProducts";
 import Wishlist from "./pages/Wishlist";
 import Cart from "./pages/Cart";
+import CustomOrder from "./pages/CustomOrder";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
+import BottomNav from "./components/BottomNav";
 
 const queryClient = new QueryClient();
 
@@ -20,12 +22,14 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <ScrollToTop />
+        <BottomNav />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/products" element={<AllProducts />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/cart" element={<Cart />} />
+          <Route path="/custom-order" element={<CustomOrder />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
