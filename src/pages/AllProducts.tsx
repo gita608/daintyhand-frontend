@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { ShoppingBag, Heart, Star, Search } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ShoppingBag, Heart, Star, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
-import { products as allProducts, categories } from "@/data/products";
+import { getProducts, getCategories, addToCart, addToWishlist, removeFromWishlist, getWishlist } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import {
@@ -15,27 +15,93 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
+interface Product {
+  id: number;
+  title: string;
+  description: string;
+  price: number;
+  image: string;
+  category: string;
+  rating: number;
+  reviews_count: number;
+  in_stock: boolean;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+}
+
 const AllProducts = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [wishlistItems, setWishlistItems] = useState<number[]>([]);
+  const [loading, setLoading] = useState(true);
   const productsPerPage = 8;
 
-  // Filter products based on search and category
-  const filteredProducts = allProducts.filter((product) => {
-    const matchesSearch = product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  useEffect(() => {
+    fetchCategories();
+    fetchWishlist();
+  }, []);
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
-  const indexOfLastProduct = currentPage * productsPerPage;
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
-  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
+  useEffect(() => {
+    fetchProducts();
+  }, [searchQuery, selectedCategory, currentPage]);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await getCategories();
+      if (response.success) {
+        setCategories(response.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await getProducts({
+        category: selectedCategory === "All" ? undefined : selectedCategory,
+        search: searchQuery || undefined,
+        per_page: productsPerPage,
+        page: currentPage,
+      });
+      if (response.success) {
+        setProducts(response.data?.data || []);
+      }
+    } catch (error: any) {
+      console.error('Error fetching products:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to fetch products",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchWishlist = async () => {
+    try {
+      const response = await getWishlist();
+      if (response.success) {
+        const wishlistProductIds = (response.data || []).map((item: any) => item.product_id);
+        setWishlistItems(wishlistProductIds);
+      }
+    } catch (error) {
+      console.error('Error fetching wishlist:', error);
+    }
+  };
+
+  const totalPages = Math.ceil((products.length || 0) / productsPerPage);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -52,92 +118,58 @@ const AllProducts = () => {
     setCurrentPage(1);
   };
 
-  const toggleWishlist = (e: React.MouseEvent, product: typeof allProducts[0]) => {
+  const toggleWishlist = async (e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
     try {
-      const saved = localStorage.getItem('wishlist');
-      const wishlist = saved ? JSON.parse(saved) : [];
-      
-      const exists = wishlist.find((item: any) => item.product_id === product.id);
-      
-      if (exists) {
-        const updated = wishlist.filter((item: any) => item.product_id !== product.id);
-        localStorage.setItem('wishlist', JSON.stringify(updated));
-        toast({
-          title: "Removed from wishlist",
-          description: `${product.title} has been removed from your wishlist`,
-        });
+      if (wishlistItems.includes(product.id)) {
+        // Find wishlist item ID
+        const wishlistResponse = await getWishlist();
+        if (wishlistResponse.success) {
+          const wishlistItem = (wishlistResponse.data || []).find((item: any) => item.product_id === product.id);
+          if (wishlistItem) {
+            await removeFromWishlist(wishlistItem.id);
+            setWishlistItems(wishlistItems.filter(id => id !== product.id));
+            toast({
+              title: "Removed from wishlist",
+              description: `${product.title} has been removed from your wishlist`,
+            });
+          }
+        }
       } else {
-        const newItem = {
-          id: crypto.randomUUID(),
-          product_id: product.id,
-          title: product.title,
-          price: product.price,
-          image: product.image,
-          description: product.description,
-        };
-        wishlist.push(newItem);
-        localStorage.setItem('wishlist', JSON.stringify(wishlist));
+        await addToWishlist(product.id);
+        setWishlistItems([...wishlistItems, product.id]);
         toast({
           title: "Added to wishlist",
           description: `${product.title} has been added to your wishlist`,
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to update wishlist",
+        description: error.response?.data?.message || "Failed to update wishlist",
         variant: "destructive",
       });
     }
   };
 
   const isInWishlist = (productId: number) => {
-    try {
-      const saved = localStorage.getItem('wishlist');
-      const wishlist = saved ? JSON.parse(saved) : [];
-      return wishlist.some((item: any) => item.product_id === productId);
-    } catch {
-      return false;
-    }
+    return wishlistItems.includes(productId);
   };
 
-  const addToCart = (e: React.MouseEvent, product: typeof allProducts[0]) => {
+  const handleAddToCart = async (e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
     try {
-      const saved = localStorage.getItem('cart');
-      const cart = saved ? JSON.parse(saved) : [];
-      
-      const existingItem = cart.find((item: any) => item.product_id === product.id);
-      
-      if (existingItem) {
-        existingItem.quantity += 1;
-        localStorage.setItem('cart', JSON.stringify(cart));
-        toast({
-          title: "Updated cart",
-          description: `${product.title} quantity updated`,
-        });
-      } else {
-        const newItem = {
-          id: crypto.randomUUID(),
-          product_id: product.id,
-          title: product.title,
-          price: product.price,
-          image: product.image,
-          description: product.description,
-          quantity: 1,
-        };
-        cart.push(newItem);
-        localStorage.setItem('cart', JSON.stringify(cart));
+      const response = await addToCart(product.id, 1);
+      if (response.success) {
         toast({
           title: "Added to cart",
-          description: `${product.title} has been added to your cart`,
+          description: response.message || `${product.title} has been added to your cart`,
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to add to cart",
+        description: error.response?.data?.message || "Failed to add to cart",
         variant: "destructive",
       });
     }
@@ -174,30 +206,46 @@ const AllProducts = () => {
         {/* Category Filter */}
         <div className="overflow-x-auto pb-4 mb-8">
           <div className="flex gap-2 md:gap-3 min-w-max px-4 md:justify-center">
+            <Button
+              key="all"
+              variant={selectedCategory === "All" ? "default" : "outline"}
+              className="rounded-full px-4 md:px-6 py-2 text-sm whitespace-nowrap flex-shrink-0"
+              onClick={() => handleCategoryChange("All")}
+            >
+              All
+            </Button>
             {categories.map((category) => (
               <Button
-                key={category}
-                variant={category === selectedCategory ? "default" : "outline"}
+                key={category.id}
+                variant={category.name === selectedCategory ? "default" : "outline"}
                 className="rounded-full px-4 md:px-6 py-2 text-sm whitespace-nowrap flex-shrink-0"
-                onClick={() => handleCategoryChange(category)}
+                onClick={() => handleCategoryChange(category.name)}
               >
-                {category}
+                {category.name}
               </Button>
             ))}
           </div>
         </div>
 
-        {/* Results count */}
-        <div className="text-center mb-6">
-          <p className="text-sm text-muted-foreground">
-            Showing {currentProducts.length} of {filteredProducts.length} products
-          </p>
-        </div>
+        {/* Loading State */}
+        {loading ? (
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading products...</p>
+          </div>
+        ) : (
+          <>
+            {/* Results count */}
+            <div className="text-center mb-6">
+              <p className="text-sm text-muted-foreground">
+                Showing {products.length} products
+              </p>
+            </div>
 
-        {/* Products Grid */}
-        {currentProducts.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 mb-12">
-            {currentProducts.map((product, index) => (
+            {/* Products Grid */}
+            {products.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 mb-12">
+                {products.map((product, index) => (
               <div
                 key={product.id}
                 className="group craft-card animate-fade-up cursor-pointer"
@@ -233,7 +281,7 @@ const AllProducts = () => {
                       {product.title}
                     </h3>
                     <span className="text-sm md:text-lg font-bold text-primary flex-shrink-0">
-                      {product.price}
+                      ₹{product.price.toLocaleString('en-IN')}
                     </span>
                   </div>
 
@@ -254,7 +302,7 @@ const AllProducts = () => {
                         />
                       ))}
                       <span className="text-[10px] md:text-xs text-muted-foreground ml-0.5 md:ml-1">
-                        ({product.reviews})
+                        ({product.reviews_count})
                       </span>
                     </div>
                   </div>
@@ -262,7 +310,7 @@ const AllProducts = () => {
                   <Button
                     className="w-full bg-secondary hover:bg-dainty-blue-dark text-dainty-gray font-semibold py-1.5 md:py-2 text-xs md:text-sm rounded-lg transition-colors duration-300"
                     size="sm"
-                    onClick={(e) => addToCart(e, product)}
+                    onClick={(e) => handleAddToCart(e, product)}
                   >
                     <ShoppingBag className="w-3 h-3 md:w-4 md:h-4 md:mr-2" />
                     <span className="hidden md:inline">Add to Cart</span>
@@ -278,53 +326,55 @@ const AllProducts = () => {
           </div>
         )}
 
-        {/* Pagination */}
-        {filteredProducts.length > productsPerPage && (
-          <Pagination className="mt-12">
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
-              </PaginationItem>
-              
-              {[...Array(totalPages)].map((_, index) => {
-                const pageNumber = index + 1;
-                // Show first page, last page, current page, and pages around current
-                if (
-                  pageNumber === 1 ||
-                  pageNumber === totalPages ||
-                  (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
-                ) {
-                  return (
-                    <PaginationItem key={pageNumber}>
-                      <PaginationLink
-                        onClick={() => handlePageChange(pageNumber)}
-                        isActive={currentPage === pageNumber}
-                        className="cursor-pointer"
-                      >
-                        {pageNumber}
-                      </PaginationLink>
-                    </PaginationItem>
-                  );
-                } else if (
-                  pageNumber === currentPage - 2 ||
-                  pageNumber === currentPage + 2
-                ) {
-                  return <PaginationItem key={pageNumber}>...</PaginationItem>;
-                }
-                return null;
-              })}
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Pagination className="mt-12">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  
+                  {[...Array(totalPages)].map((_, index) => {
+                    const pageNumber = index + 1;
+                    // Show first page, last page, current page, and pages around current
+                    if (
+                      pageNumber === 1 ||
+                      pageNumber === totalPages ||
+                      (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                    ) {
+                      return (
+                        <PaginationItem key={`page-${pageNumber}`}>
+                          <PaginationLink
+                            onClick={() => handlePageChange(pageNumber)}
+                            isActive={currentPage === pageNumber}
+                            className="cursor-pointer"
+                          >
+                            {pageNumber}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    } else if (
+                      pageNumber === currentPage - 2 ||
+                      pageNumber === currentPage + 2
+                    ) {
+                      return <PaginationItem key={`ellipsis-${pageNumber}`}>...</PaginationItem>;
+                    }
+                    return null;
+                  })}
 
-              <PaginationItem>
-                <PaginationNext
-                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
+          </>
         )}
       </div>
     </div>

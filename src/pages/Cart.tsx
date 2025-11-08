@@ -5,15 +5,25 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
+import { getCart, updateCartItem, removeFromCart as removeFromCartAPI } from "@/services/api";
 
 interface CartItem {
-  id: string;
+  id: number | string;
   product_id: number;
-  title: string;
-  price: string;
-  image: string;
-  description: string;
   quantity: number;
+  // Backend returns flat structure (not nested product object)
+  title?: string;
+  price?: string | number;
+  image?: string;
+  description?: string;
+  // Also support nested structure if backend changes
+  product?: {
+    id: number;
+    title: string;
+    price: number;
+    image: string;
+    description?: string;
+  };
 }
 
 const Cart = () => {
@@ -25,50 +35,56 @@ const Cart = () => {
     fetchCart();
   }, []);
 
-  const fetchCart = () => {
+  const fetchCart = async () => {
     try {
-      const saved = localStorage.getItem('cart');
-      const items = saved ? JSON.parse(saved) : [];
-      setCartItems(items);
-    } catch (error) {
+      setLoading(true);
+      const response = await getCart();
+      if (response.success) {
+        setCartItems(response.data || []);
+      }
+    } catch (error: any) {
       console.error('Error fetching cart:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to fetch cart",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const removeFromCart = (id: string) => {
+  const removeFromCart = async (id: number) => {
     try {
-      const updatedItems = cartItems.filter(item => item.id !== id);
-      setCartItems(updatedItems);
-      localStorage.setItem('cart', JSON.stringify(updatedItems));
-      
-      toast({
-        title: "Removed from cart",
-        description: "Item has been removed from your cart",
-      });
-    } catch (error) {
+      const response = await removeFromCartAPI(id);
+      if (response.success) {
+        await fetchCart();
+        toast({
+          title: "Removed from cart",
+          description: response.message || "Item has been removed from your cart",
+        });
+      }
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to remove item from cart",
+        description: error.response?.data?.message || "Failed to remove item from cart",
         variant: "destructive",
       });
     }
   };
 
-  const updateQuantity = (id: string, newQuantity: number) => {
+  const updateQuantity = async (id: number, newQuantity: number) => {
     if (newQuantity < 1) return;
     
     try {
-      const updatedItems = cartItems.map(item =>
-        item.id === id ? { ...item, quantity: newQuantity } : item
-      );
-      setCartItems(updatedItems);
-      localStorage.setItem('cart', JSON.stringify(updatedItems));
-    } catch (error) {
+      const response = await updateCartItem(id, newQuantity);
+      if (response.success) {
+        await fetchCart();
+      }
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to update quantity",
+        description: error.response?.data?.message || "Failed to update quantity",
         variant: "destructive",
       });
     }
@@ -76,14 +92,16 @@ const Cart = () => {
 
   const calculateTotal = () => {
     return cartItems.reduce((total, item) => {
-      const price = parseFloat(item.price.replace('₹', '').replace('$', ''));
-      return total + (price * item.quantity);
+      const price = item.product?.price || item.price || 0;
+      const priceNum = typeof price === 'string' ? parseFloat(price) : price;
+      return total + (priceNum * item.quantity);
     }, 0).toFixed(2);
   };
 
   const calculateSubtotal = (item: CartItem) => {
-    const price = parseFloat(item.price.replace('₹', '').replace('$', ''));
-    return (price * item.quantity).toFixed(2);
+    const price = item.product?.price || item.price || 0;
+    const priceNum = typeof price === 'string' ? parseFloat(price) : price;
+    return (priceNum * item.quantity).toFixed(2);
   };
 
   return (
@@ -122,32 +140,41 @@ const Cart = () => {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
-              {cartItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300"
-                >
-                  <div className="flex gap-4 p-4">
-                    <Link to={`/product/${item.product_id}`} className="flex-shrink-0">
-                      <div className="w-24 h-24 md:w-32 md:h-32 rounded-lg overflow-hidden bg-dainty-cream/30">
-                        <img
-                          src={item.image}
-                          alt={item.title}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                        />
-                      </div>
-                    </Link>
+              {cartItems.map((item) => {
+                // Handle both flat structure (from API) and nested structure
+                const productId = item.product?.id || item.product_id;
+                const title = item.product?.title || item.title || 'Product';
+                const image = item.product?.image || item.image || '';
+                const description = item.product?.description || item.description;
 
-                    <div className="flex-1 min-w-0">
-                      <Link to={`/product/${item.product_id}`}>
-                        <h3 className="font-playfair text-lg font-semibold text-dainty-gray mb-1 hover:text-primary transition-colors line-clamp-2">
-                          {item.title}
-                        </h3>
+                return (
+                  <div
+                    key={item.id}
+                    className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300"
+                  >
+                    <div className="flex gap-4 p-4">
+                      <Link to={`/product/${productId}`} className="flex-shrink-0">
+                        <div className="w-24 h-24 md:w-32 md:h-32 rounded-lg overflow-hidden bg-dainty-cream/30">
+                          <img
+                            src={image}
+                            alt={title}
+                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
                       </Link>
-                      
-                      <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
-                        {item.description}
-                      </p>
+
+                      <div className="flex-1 min-w-0">
+                        <Link to={`/product/${productId}`}>
+                          <h3 className="font-playfair text-lg font-semibold text-dainty-gray mb-1 hover:text-primary transition-colors line-clamp-2">
+                            {title}
+                          </h3>
+                        </Link>
+                        
+                        {description && (
+                          <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
+                            {description}
+                          </p>
+                        )}
 
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-2">
@@ -155,7 +182,7 @@ const Cart = () => {
                             variant="outline"
                             size="icon"
                             className="h-10 w-10 md:h-8 md:w-8 touch-manipulation"
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            onClick={() => updateQuantity(typeof item.id === 'string' ? parseInt(item.id) : item.id, item.quantity - 1)}
                           >
                             <Minus className="w-4 h-4 md:w-3 md:h-3" />
                           </Button>
@@ -166,7 +193,7 @@ const Cart = () => {
                             variant="outline"
                             size="icon"
                             className="h-10 w-10 md:h-8 md:w-8 touch-manipulation"
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            onClick={() => updateQuantity(typeof item.id === 'string' ? parseInt(item.id) : item.id, item.quantity + 1)}
                           >
                             <Plus className="w-4 h-4 md:w-3 md:h-3" />
                           </Button>
@@ -179,7 +206,7 @@ const Cart = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => removeFromCart(item.id)}
+                            onClick={() => removeFromCart(typeof item.id === 'string' ? parseInt(item.id) : item.id)}
                             className="text-destructive hover:bg-destructive/10"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -189,7 +216,8 @@ const Cart = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
 
             {/* Order Summary */}

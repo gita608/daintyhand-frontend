@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
+import { getUser, updateProfile, changePassword, logout } from "@/services/api";
 import { User, Mail, Phone, Lock, LogOut, Shield, Package } from "lucide-react";
 
 const profileSchema = z.object({
@@ -61,38 +62,56 @@ const Profile = () => {
   });
 
   useEffect(() => {
-    // TODO: Fetch user data from API
-    // For now, get from localStorage
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      const parsed = JSON.parse(userData);
-      setUser(parsed);
-      profileForm.reset({
-        name: parsed.name || "",
-        phone: parsed.phone || "",
-      });
-    } else {
-      // Not logged in, redirect to login
-      navigate('/login');
-    }
+    const fetchUser = async () => {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      
+      try {
+        const response = await getUser();
+        if (response.success) {
+          setUser(response.data);
+          profileForm.reset({
+            name: response.data.name || "",
+            phone: response.data.phone || "",
+          });
+        }
+      } catch (error: any) {
+        if (error.response?.status === 401) {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('user');
+          navigate('/login');
+        }
+      }
+    };
+    
+    fetchUser();
   }, [navigate, profileForm]);
 
   const onProfileSubmit = async (data: ProfileValues) => {
     setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await updateProfileAPI(data);
-      console.log("Profile update:", data);
-      
-      toast({
-        title: "Profile Updated",
-        description: "Your profile has been updated successfully.",
+      const response = await updateProfile({
+        name: data.name,
+        phone: data.phone || undefined,
       });
+      if (response.success) {
+        setUser(response.data);
+        toast({
+          title: "Profile Updated",
+          description: response.message || "Your profile has been updated successfully.",
+        });
+      }
       setLoading(false);
     } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.response?.data?.errors 
+        ? Object.values(error.response.data.errors).flat().join(", ")
+        : error.message || "Failed to update profile";
       toast({
         title: "Update Failed",
-        description: error.response?.data?.message || "Failed to update profile",
+        description: errorMessage,
         variant: "destructive",
       });
       setLoading(false);
@@ -102,20 +121,26 @@ const Profile = () => {
   const onPasswordSubmit = async (data: PasswordValues) => {
     setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await changePasswordAPI(data);
-      console.log("Password change:", data);
-      
-      toast({
-        title: "Password Changed",
-        description: "Your password has been changed successfully.",
+      const response = await changePassword({
+        current_password: data.current_password,
+        password: data.password,
+        password_confirmation: data.password_confirmation,
       });
-      passwordForm.reset();
+      if (response.success) {
+        toast({
+          title: "Password Changed",
+          description: response.message || "Your password has been changed successfully.",
+        });
+        passwordForm.reset();
+      }
       setLoading(false);
     } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.response?.data?.errors 
+        ? Object.values(error.response.data.errors).flat().join(", ")
+        : error.message || "Failed to change password";
       toast({
         title: "Change Failed",
-        description: error.response?.data?.message || "Failed to change password",
+        description: errorMessage,
         variant: "destructive",
       });
       setLoading(false);
@@ -124,16 +149,17 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
-      // TODO: Call logout API
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user');
+      await logout();
       toast({
         title: "Logged Out",
         description: "You have been logged out successfully.",
       });
       navigate('/');
-    } catch (error) {
-      console.error('Logout error:', error);
+    } catch (error: any) {
+      // Even if API call fails, clear local storage
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
+      navigate('/');
     }
   };
 

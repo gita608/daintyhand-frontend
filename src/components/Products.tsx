@@ -1,11 +1,60 @@
-import { ShoppingBag, Heart, Star } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ShoppingBag, Heart, Star, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { products as allProducts, categories } from "@/data/products";
+import { getProducts, getCategories } from "@/services/api";
+
+interface Product {
+  id: number;
+  title: string;
+  description: string;
+  price: number;
+  image: string;
+  category: string;
+  rating: number;
+  reviews_count: number;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+}
 
 const Products = () => {
   const navigate = useNavigate();
-  const products = allProducts.slice(0, 8); // Show only first 8 products
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await getProducts({ per_page: 8 });
+      if (response.success) {
+        setProducts(response.data?.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await getCategories();
+      if (response.success) {
+        setCategories(response.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   return (
     <section className="py-12 md:py-20 bg-gradient-to-br from-dainty-cream via-dainty-pink/5 to-dainty-blue/5">
@@ -21,22 +70,36 @@ const Products = () => {
           {/* Category Filter - Mobile Optimized */}
           <div className="overflow-x-auto pb-4 mb-8 md:mb-12">
             <div className="flex gap-2 md:gap-3 min-w-max px-4 md:justify-center">
+              <Button
+                key="all"
+                variant="default"
+                className="rounded-full px-3 md:px-6 py-2 text-xs md:text-sm whitespace-nowrap flex-shrink-0"
+              >
+                All
+              </Button>
               {categories.map((category) => (
                 <Button
-                  key={category}
-                  variant={category === "All" ? "default" : "outline"}
+                  key={category.id}
+                  variant="outline"
                   className="rounded-full px-3 md:px-6 py-2 text-xs md:text-sm whitespace-nowrap flex-shrink-0"
                 >
-                  {category}
+                  {category.name}
                 </Button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Mobile: Horizontal scroll */}
-        <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory hide-scrollbar md:hidden">
-          {products.map((product, index) => (
+        {loading ? (
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading products...</p>
+          </div>
+        ) : (
+          <>
+            {/* Mobile: Horizontal scroll */}
+            <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory hide-scrollbar md:hidden">
+              {products.map((product, index) => (
             <div 
               key={product.id} 
               className="flex-shrink-0 w-[280px] snap-center"
@@ -70,7 +133,7 @@ const Products = () => {
                       {product.title}
                     </h3>
                     <span className="text-sm font-bold text-primary ml-1 flex-shrink-0">
-                      {product.price}
+                      ₹{product.price.toLocaleString('en-IN')}
                     </span>
                   </div>
                   
@@ -87,7 +150,7 @@ const Products = () => {
                         />
                       ))}
                       <span className="text-xs text-muted-foreground ml-1">
-                        ({product.reviews})
+                        ({product.reviews_count})
                       </span>
                     </div>
                   </div>
@@ -138,7 +201,7 @@ const Products = () => {
                     {product.title}
                   </h3>
                   <span className="text-sm md:text-lg font-bold text-primary ml-1 md:ml-2 flex-shrink-0">
-                    {product.price}
+                    ₹{product.price.toLocaleString('en-IN')}
                   </span>
                 </div>
                 
@@ -155,7 +218,7 @@ const Products = () => {
                       />
                     ))}
                     <span className="text-xs text-muted-foreground ml-1">
-                      ({product.reviews})
+                      ({product.reviews_count})
                     </span>
                   </div>
                 </div>
@@ -171,6 +234,8 @@ const Products = () => {
             </div>
           ))}
         </div>
+          </>
+        )}
         
         <div className="text-center mt-8 md:mt-12">
           <Button 

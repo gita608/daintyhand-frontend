@@ -1,17 +1,64 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Instagram, ExternalLink } from "lucide-react";
+import { Instagram, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { products } from "@/data/products";
+import { getProducts, getCategories } from "@/services/api";
+
+interface Product {
+  id: number;
+  title: string;
+  image: string;
+  category: string;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+}
 
 const Gallery = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const categories = ["All", "Invitations", "Wall Art", "Paper Crafts", "Albums", "Cards", "Decorations", "Journals", "Gift Wrap", "Frames"];
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredProducts = selectedCategory === "All" 
-    ? products 
-    : products.filter(p => p.category === selectedCategory);
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [selectedCategory]);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await getProducts({
+        category: selectedCategory === "All" ? undefined : selectedCategory,
+        per_page: 50,
+      });
+      if (response.success) {
+        setProducts(response.data?.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await getCategories();
+      if (response.success) {
+        setCategories(response.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dainty-cream via-white to-dainty-pink/5">
@@ -47,14 +94,21 @@ const Gallery = () => {
         <div className="mb-8 md:mb-12">
           <div className="overflow-x-auto pb-4">
             <div className="flex gap-2 md:gap-3 min-w-max px-4 md:justify-center">
+              <Button
+                variant={selectedCategory === "All" ? "default" : "outline"}
+                className="rounded-full px-4 md:px-6 py-2 text-sm whitespace-nowrap flex-shrink-0"
+                onClick={() => setSelectedCategory("All")}
+              >
+                All
+              </Button>
               {categories.map((category) => (
                 <Button
-                  key={category}
-                  variant={category === selectedCategory ? "default" : "outline"}
+                  key={category.id}
+                  variant={category.name === selectedCategory ? "default" : "outline"}
                   className="rounded-full px-4 md:px-6 py-2 text-sm whitespace-nowrap flex-shrink-0 touch-manipulation"
-                  onClick={() => setSelectedCategory(category)}
+                  onClick={() => setSelectedCategory(category.name)}
                 >
-                  {category}
+                  {category.name}
                 </Button>
               ))}
             </div>
@@ -62,8 +116,14 @@ const Gallery = () => {
         </div>
 
         {/* Gallery Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-12">
-          {filteredProducts.map((product) => (
+        {loading ? (
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading gallery...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-12">
+            {products.map((product) => (
             <div
               key={product.id}
               className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer"
@@ -90,20 +150,14 @@ const Gallery = () => {
                 <h3 className="font-playfair text-base font-semibold text-dainty-gray mb-1 line-clamp-1">
                   {product.title}
                 </h3>
-                <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                  {product.description}
-                </p>
                 <div className="flex items-center justify-between">
-                  <span className="text-lg font-bold text-primary">{product.price}</span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-yellow-400">★</span>
-                    <span className="text-xs text-muted-foreground">({product.reviews})</span>
-                  </div>
+                  <span className="text-sm text-muted-foreground">{product.category}</span>
                 </div>
               </div>
             </div>
           ))}
         </div>
+        )}
 
         {/* Instagram CTA */}
         <div className="max-w-3xl mx-auto bg-white rounded-2xl p-8 md:p-12 shadow-sm text-center">

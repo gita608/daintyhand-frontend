@@ -16,6 +16,7 @@ import {
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
+import { login } from "@/services/api";
 import { Mail, Lock, LogIn } from "lucide-react";
 
 const formSchema = z.object({
@@ -41,24 +42,19 @@ const Login = () => {
   const onSubmit = async (data: FormValues) => {
     setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await loginAPI(data);
-      // For now, simulate API call
-      console.log("Login attempt:", data);
-      
-      // Simulate success
-      setTimeout(() => {
+      const response = await login(data);
+      if (response.success) {
         toast({
           title: "Login Successful!",
-          description: "Welcome back!",
+          description: response.message || "Welcome back!",
         });
-        navigate("/");
-        setLoading(false);
-      }, 1000);
+        // Refresh page to update header/auth state
+        window.location.href = "/";
+      }
     } catch (error: any) {
       toast({
         title: "Login Failed",
-        description: error.response?.data?.message || "Invalid email or password",
+        description: error.response?.data?.message || error.message || "Invalid email or password",
         variant: "destructive",
       });
       setLoading(false);

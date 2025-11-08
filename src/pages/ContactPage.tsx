@@ -14,9 +14,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Mail, Phone, MapPin, Instagram, MessageSquare } from "lucide-react";
+import { useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
+import { submitContact } from "@/services/api";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -29,6 +31,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 const ContactPage = () => {
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -40,16 +43,29 @@ const ContactPage = () => {
     },
   });
 
-  const onSubmit = (data: FormValues) => {
-    // In a real app, this would send data to a backend API
-    console.log("Contact Form Submission:", data);
-    
-    toast({
-      title: "Message Sent!",
-      description: "Thank you for reaching out! We'll get back to you within 24-48 hours.",
-    });
-
-    form.reset();
+  const onSubmit = async (data: FormValues) => {
+    setLoading(true);
+    try {
+      const response = await submitContact(data);
+      if (response.success) {
+        toast({
+          title: "Message Sent!",
+          description: response.message || "Thank you for reaching out! We'll get back to you within 24-48 hours.",
+        });
+        form.reset();
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.response?.data?.errors 
+        ? Object.values(error.response.data.errors).flat().join(", ")
+        : error.message || "Failed to send message. Please try again.";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -236,9 +252,10 @@ const ContactPage = () => {
                   type="submit"
                   size="lg"
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 text-lg rounded-xl"
+                  disabled={loading}
                 >
                   <Mail className="w-5 h-5 mr-2" />
-                  Send Message
+                  {loading ? "Sending..." : "Send Message"}
                 </Button>
               </form>
             </Form>

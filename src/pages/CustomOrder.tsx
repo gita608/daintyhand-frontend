@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -23,6 +24,7 @@ import {
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
+import { submitCustomOrder } from "@/services/api";
 import { Sparkles, Mail, Phone, Calendar, Package, DollarSign, FileText } from "lucide-react";
 
 const formSchema = z.object({
@@ -41,6 +43,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 const CustomOrder = () => {
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -57,30 +60,39 @@ const CustomOrder = () => {
     },
   });
 
-  const onSubmit = (data: FormValues) => {
-    // In a real app, this would send data to a backend API
-    console.log("Custom Order Submission:", data);
-    
-    // Store in localStorage for demo purposes
+  const onSubmit = async (data: FormValues) => {
+    setLoading(true);
     try {
-      const orders = JSON.parse(localStorage.getItem('customOrders') || '[]');
-      orders.push({
-        ...data,
-        id: crypto.randomUUID(),
-        submittedAt: new Date().toISOString(),
+      const response = await submitCustomOrder({
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        product_type: data.productType,
+        quantity: data.quantity,
+        budget: data.budget,
+        event_date: data.eventDate || undefined,
+        description: data.description,
+        additional_notes: data.additionalNotes || undefined,
       });
-      localStorage.setItem('customOrders', JSON.stringify(orders));
-    } catch (error) {
-      console.error('Error saving order:', error);
+      if (response.success) {
+        toast({
+          title: "Order Submitted Successfully!",
+          description: response.message || "We've received your custom order request. Our team will contact you within 24-48 hours.",
+        });
+        form.reset();
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.response?.data?.errors 
+        ? Object.values(error.response.data.errors).flat().join(", ")
+        : error.message || "Failed to submit order. Please try again.";
+      toast({
+        title: "Submission Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-
-    toast({
-      title: "Order Submitted Successfully!",
-      description: "We've received your custom order request. Our team will contact you within 24-48 hours.",
-    });
-
-    // Reset form
-    form.reset();
   };
 
   return (
@@ -331,9 +343,10 @@ const CustomOrder = () => {
                     type="submit"
                     size="lg"
                     className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                    disabled={loading}
                   >
                     <Sparkles className="w-5 h-5 mr-2" />
-                    Submit Custom Order Request
+                    {loading ? "Submitting..." : "Submit Custom Order Request"}
                   </Button>
                   <p className="text-sm text-muted-foreground text-center mt-4">
                     * Required fields. We'll respond within 24-48 hours.

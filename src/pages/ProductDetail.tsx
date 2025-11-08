@@ -1,62 +1,89 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, Heart, Star, ChevronLeft, Minus, Plus, Truck, Shield, RefreshCw } from "lucide-react";
+import { ShoppingBag, Heart, Star, ChevronLeft, Minus, Plus, Truck, Shield, RefreshCw, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { products as allProducts } from "@/data/products";
+import { getProduct, addToCart, addToWishlist, removeFromWishlist, getWishlist } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
-// Extended product data with additional details
-const getProductDetails = (productId: number) => {
-  const baseProduct = allProducts.find(p => p.id === productId);
-  if (!baseProduct) return null;
-
-  // Default details for all products
-  const defaultDetails = {
-    fullDescription: `${baseProduct.description}. Each piece is handcrafted with love and attention to detail. We use only the finest materials to ensure your special moments are captured beautifully.`,
-    images: [
-      baseProduct.image,
-      baseProduct.image,
-      baseProduct.image
-    ],
-    inStock: true,
-    features: [
-      "Premium quality materials",
-      "Handcrafted with care",
-      "Personalization available",
-      "Eco-friendly options",
-      "Carefully packaged"
-    ],
-    specifications: {
-      "Category": baseProduct.category,
-      "Rating": `${baseProduct.rating}/5`,
-      "Reviews": `${baseProduct.reviews} customer reviews`,
-      "Customization": "Available",
-      "Production Time": "7-10 business days"
-    }
-  };
-
-  return { ...baseProduct, ...defaultDetails };
-};
+interface Product {
+  id: number;
+  title: string;
+  description: string;
+  price: number;
+  image: string;
+  category: string;
+  rating: number;
+  reviews_count: number;
+  in_stock: boolean;
+  images?: Array<{ id: number; image_url: string }>;
+  features?: Array<{ id: number; feature: string }>;
+  specifications?: Array<{ id: number; key: string; value: string }>;
+}
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isInWishlist, setIsInWishlist] = useState(false);
 
-  const product = getProductDetails(parseInt(id || "1"));
-
   useEffect(() => {
-    if (!product) return;
-    const saved = localStorage.getItem('wishlist');
-    const wishlist = saved ? JSON.parse(saved) : [];
-    setIsInWishlist(wishlist.some((item: any) => item.product_id === product.id));
-  }, [product]);
+    if (id) {
+      fetchProduct();
+      checkWishlist();
+    }
+  }, [id]);
+
+  const fetchProduct = async () => {
+    try {
+      setLoading(true);
+      const response = await getProduct(parseInt(id || "1"));
+      if (response.success) {
+        setProduct(response.data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching product:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to fetch product",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkWishlist = async () => {
+    try {
+      const response = await getWishlist();
+      if (response.success) {
+        const productId = parseInt(id || "1");
+        const inWishlist = (response.data || []).some((item: any) => item.product_id === productId);
+        setIsInWishlist(inWishlist);
+      }
+    } catch (error) {
+      console.error('Error checking wishlist:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-dainty-cream via-dainty-pink/5 to-dainty-blue/5">
+        <Header />
+        <div className="container mx-auto px-4 py-8 md:py-12 pt-20 md:pt-24 text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading product...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -74,82 +101,51 @@ const ProductDetail = () => {
   const incrementQuantity = () => setQuantity(prev => prev + 1);
   const decrementQuantity = () => setQuantity(prev => prev > 1 ? prev - 1 : 1);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     try {
-      const saved = localStorage.getItem('cart');
-      const cart = saved ? JSON.parse(saved) : [];
-      
-      const existingItem = cart.find((item: any) => item.product_id === product.id);
-      
-      if (existingItem) {
-        existingItem.quantity += quantity;
-        localStorage.setItem('cart', JSON.stringify(cart));
-        toast({
-          title: "Cart Updated",
-          description: `${product.title} quantity updated`,
-        });
-      } else {
-        const newItem = {
-          id: crypto.randomUUID(),
-          product_id: product.id,
-          title: product.title,
-          price: product.price,
-          image: product.images[0],
-          description: product.description,
-          quantity: quantity,
-        };
-        cart.push(newItem);
-        localStorage.setItem('cart', JSON.stringify(cart));
+      const response = await addToCart(product.id, quantity);
+      if (response.success) {
         toast({
           title: "Added to Cart",
-          description: `${product.title} has been added to your cart`,
+          description: response.message || `${product.title} has been added to your cart`,
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to add to cart",
+        description: error.response?.data?.message || "Failed to add to cart",
         variant: "destructive",
       });
     }
   };
 
-  const handleToggleWishlist = () => {
+  const handleToggleWishlist = async () => {
     try {
-      const saved = localStorage.getItem('wishlist');
-      const wishlist = saved ? JSON.parse(saved) : [];
-      
-      const exists = wishlist.find((item: any) => item.product_id === product.id);
-      
-      if (exists) {
-        const updated = wishlist.filter((item: any) => item.product_id !== product.id);
-        localStorage.setItem('wishlist', JSON.stringify(updated));
-        setIsInWishlist(false);
-        toast({
-          title: "Removed from wishlist",
-          description: `${product.title} has been removed from your wishlist`,
-        });
+      if (isInWishlist) {
+        const wishlistResponse = await getWishlist();
+        if (wishlistResponse.success) {
+          const wishlistItem = (wishlistResponse.data || []).find((item: any) => item.product_id === product.id);
+          if (wishlistItem) {
+            await removeFromWishlist(wishlistItem.id);
+            setIsInWishlist(false);
+            toast({
+              title: "Removed from wishlist",
+              description: `${product.title} has been removed from your wishlist`,
+            });
+          }
+        }
       } else {
-        const newItem = {
-          id: crypto.randomUUID(),
-          product_id: product.id,
-          title: product.title,
-          price: product.price,
-          image: product.images[0],
-          description: product.description,
-        };
-        wishlist.push(newItem);
-        localStorage.setItem('wishlist', JSON.stringify(wishlist));
+        await addToWishlist(product.id);
         setIsInWishlist(true);
         toast({
           title: "Added to wishlist",
           description: `${product.title} has been added to your wishlist`,
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to update wishlist",
+        description: error.response?.data?.message || "Failed to update wishlist",
         variant: "destructive",
       });
     }
@@ -167,7 +163,9 @@ const ProductDetail = () => {
             <div className="craft-card overflow-hidden rounded-2xl">
               <div className="aspect-square overflow-hidden">
                 <img
-                  src={product.images[selectedImage]}
+                  src={product.images && product.images.length > 0 
+                    ? product.images[selectedImage]?.image_url || product.image
+                    : product.image}
                   alt={product.title}
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                 />
@@ -175,25 +173,27 @@ const ProductDetail = () => {
             </div>
             
             {/* Thumbnail Gallery */}
-            <div className="grid grid-cols-3 gap-4">
-              {product.images.map((image, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedImage(index)}
-                  className={`craft-card overflow-hidden rounded-lg transition-all duration-300 ${
-                    selectedImage === index ? 'ring-2 ring-primary' : ''
-                  }`}
-                >
-                  <div className="aspect-square overflow-hidden">
-                    <img
-                      src={image}
-                      alt={`${product.title} view ${index + 1}`}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                </button>
-              ))}
-            </div>
+            {product.images && product.images.length > 0 && (
+              <div className="grid grid-cols-3 gap-4">
+                {product.images.map((image, index) => (
+                  <button
+                    key={image.id || index}
+                    onClick={() => setSelectedImage(index)}
+                    className={`craft-card overflow-hidden rounded-lg transition-all duration-300 ${
+                      selectedImage === index ? 'ring-2 ring-primary' : ''
+                    }`}
+                  >
+                    <div className="aspect-square overflow-hidden">
+                      <img
+                        src={image.image_url}
+                        alt={`${product.title} view ${index + 1}`}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Product Info */}
@@ -219,25 +219,25 @@ const ProductDetail = () => {
                   ))}
                 </div>
                 <span className="text-sm text-muted-foreground">
-                  ({product.reviews} reviews)
+                  ({product.reviews_count} reviews)
                 </span>
               </div>
 
               {/* Price */}
               <div className="text-4xl font-bold text-primary mb-6">
-                {product.price}
+                ₹{product.price.toLocaleString('en-IN')}
               </div>
 
               {/* Description */}
               <p className="text-muted-foreground text-lg leading-relaxed mb-6">
-                {product.fullDescription}
+                {product.description}
               </p>
 
               {/* Stock Status */}
               <div className="flex items-center gap-2 mb-6">
-                <div className={`w-2 h-2 rounded-full ${product.inStock ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <div className={`w-2 h-2 rounded-full ${product.in_stock ? 'bg-green-500' : 'bg-red-500'}`}></div>
                 <span className="text-sm font-medium">
-                  {product.inStock ? 'In Stock' : 'Out of Stock'}
+                  {product.in_stock ? 'In Stock' : 'Out of Stock'}
                 </span>
               </div>
             </div>
@@ -295,12 +295,16 @@ const ProductDetail = () => {
             {/* Features */}
             <div className="craft-card p-6 rounded-xl space-y-3">
               <h3 className="font-semibold text-lg mb-4">Key Features</h3>
-              {product.features.map((feature, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary"></div>
-                  <span className="text-sm text-muted-foreground">{feature}</span>
-                </div>
-              ))}
+              {product.features && product.features.length > 0 ? (
+                product.features.map((feature, index) => (
+                  <div key={feature.id || index} className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary"></div>
+                    <span className="text-sm text-muted-foreground">{feature.feature}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No features listed</p>
+              )}
             </div>
 
             {/* Shipping Info */}
@@ -349,12 +353,16 @@ const ProductDetail = () => {
             <TabsContent value="specifications" className="craft-card p-6 md:p-8 rounded-2xl">
               <h3 className="font-playfair text-2xl font-bold mb-6">Specifications</h3>
               <div className="space-y-4">
-                {Object.entries(product.specifications).map(([key, value]) => (
-                  <div key={key} className="flex justify-between items-center py-3 border-b border-gray-100">
-                    <span className="font-medium text-dainty-gray">{key}</span>
-                    <span className="text-muted-foreground">{value}</span>
-                  </div>
-                ))}
+                {product.specifications && product.specifications.length > 0 ? (
+                  product.specifications.map((spec) => (
+                    <div key={spec.id} className="flex justify-between items-center py-3 border-b border-gray-100">
+                      <span className="font-medium text-dainty-gray">{spec.key}</span>
+                      <span className="text-muted-foreground">{spec.value}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground py-3">No specifications available</p>
+                )}
               </div>
             </TabsContent>
 

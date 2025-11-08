@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
+import { getOrders } from "@/services/api";
 import { Package, Calendar, IndianRupee, ArrowLeft, Eye, Loader2 } from "lucide-react";
 
 interface Order {
@@ -45,23 +46,17 @@ const OrderHistory = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await getOrdersAPI();
-      // For now, simulate API call
-      console.log("Fetching orders...");
-      
-      // Simulate loading
-      setTimeout(() => {
-        // Mock data for demonstration
-        setOrders([]);
-        setLoading(false);
-      }, 1000);
+      const response = await getOrders();
+      if (response.success) {
+        setOrders(response.data || []);
+      }
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.response?.data?.message || "Failed to fetch orders",
         variant: "destructive",
       });
+    } finally {
       setLoading(false);
     }
   };

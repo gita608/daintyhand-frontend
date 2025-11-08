@@ -17,6 +17,7 @@ import {
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
+import { register } from "@/services/api";
 import { User, Mail, Lock, Phone, UserPlus } from "lucide-react";
 
 const formSchema = z.object({
@@ -51,24 +52,28 @@ const Register = () => {
   const onSubmit = async (data: FormValues) => {
     setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await registerAPI(data);
-      // For now, simulate API call
-      console.log("Registration attempt:", data);
-      
-      // Simulate success
-      setTimeout(() => {
+      const response = await register({
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        password_confirmation: data.password_confirmation,
+        phone: data.phone || undefined,
+      });
+      if (response.success) {
         toast({
           title: "Account Created!",
-          description: "Welcome to DaintyHand! Your account has been created successfully.",
+          description: response.message || "Welcome to DaintyHand! Your account has been created successfully.",
         });
-        navigate("/");
-        setLoading(false);
-      }, 1000);
+        // Refresh page to update header/auth state
+        window.location.href = "/";
+      }
     } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.response?.data?.errors 
+        ? Object.values(error.response.data.errors).flat().join(", ")
+        : error.message || "Failed to create account. Please try again.";
       toast({
         title: "Registration Failed",
-        description: error.response?.data?.message || "Failed to create account. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
       setLoading(false);
