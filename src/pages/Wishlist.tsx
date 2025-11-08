@@ -125,6 +125,45 @@ const Wishlist = () => {
                     <Button
                       className="flex-1 bg-secondary hover:bg-dainty-blue-dark text-dainty-gray"
                       size="sm"
+                      onClick={() => {
+                        try {
+                          const saved = localStorage.getItem('cart');
+                          const cart = saved ? JSON.parse(saved) : [];
+                          
+                          const existingItem = cart.find((cartItem: any) => cartItem.product_id === item.product_id);
+                          
+                          if (existingItem) {
+                            existingItem.quantity += 1;
+                            localStorage.setItem('cart', JSON.stringify(cart));
+                            toast({
+                              title: "Cart Updated",
+                              description: `${item.title} quantity updated`,
+                            });
+                          } else {
+                            const newItem = {
+                              id: crypto.randomUUID(),
+                              product_id: item.product_id,
+                              title: item.title,
+                              price: item.price,
+                              image: item.image,
+                              description: item.description,
+                              quantity: 1,
+                            };
+                            cart.push(newItem);
+                            localStorage.setItem('cart', JSON.stringify(cart));
+                            toast({
+                              title: "Added to Cart",
+                              description: `${item.title} has been added to your cart`,
+                            });
+                          }
+                        } catch (error) {
+                          toast({
+                            title: "Error",
+                            description: "Failed to add to cart",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
                     >
                       <ShoppingBag className="w-4 h-4 mr-2" />
                       Add to Cart

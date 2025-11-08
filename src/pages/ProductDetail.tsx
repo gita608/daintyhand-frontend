@@ -1,56 +1,159 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ShoppingBag, Heart, Star, ChevronLeft, Minus, Plus, Truck, Shield, RefreshCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { products as allProducts } from "@/data/products";
+import { useToast } from "@/hooks/use-toast";
+
+// Extended product data with additional details
+const getProductDetails = (productId: number) => {
+  const baseProduct = allProducts.find(p => p.id === productId);
+  if (!baseProduct) return null;
+
+  // Default details for all products
+  const defaultDetails = {
+    fullDescription: `${baseProduct.description}. Each piece is handcrafted with love and attention to detail. We use only the finest materials to ensure your special moments are captured beautifully.`,
+    images: [
+      baseProduct.image,
+      baseProduct.image,
+      baseProduct.image
+    ],
+    inStock: true,
+    features: [
+      "Premium quality materials",
+      "Handcrafted with care",
+      "Personalization available",
+      "Eco-friendly options",
+      "Carefully packaged"
+    ],
+    specifications: {
+      "Category": baseProduct.category,
+      "Rating": `${baseProduct.rating}/5`,
+      "Reviews": `${baseProduct.reviews} customer reviews`,
+      "Customization": "Available",
+      "Production Time": "7-10 business days"
+    }
+  };
+
+  return { ...baseProduct, ...defaultDetails };
+};
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [isInWishlist, setIsInWishlist] = useState(false);
 
-  // Product data - in a real app, this would come from an API
-  const products = [
-    {
-      id: 1,
-      title: "Floral Wedding Invitation Set",
-      description: "Complete wedding suite with RSVP cards",
-      fullDescription: "Elevate your wedding celebration with our exquisite handcrafted floral wedding invitation set. Each piece is meticulously crafted with premium cardstock and adorned with delicate watercolor florals. The set includes main invitation cards, RSVP cards, information cards, and elegant envelopes with custom wax seals.",
-      price: "₹10,000",
-      images: [
-        "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?auto=format&fit=crop&q=80&w=800",
-        "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=800",
-        "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&q=80&w=800"
-      ],
-      category: "Invitations",
-      rating: 5,
-      reviews: 24,
-      inStock: true,
-      features: [
-        "Premium 300gsm cardstock",
-        "Hand-painted watercolor florals",
-        "Custom wax seal included",
-        "Personalization available",
-        "Eco-friendly materials"
-      ],
-      specifications: {
-        "Size": "5\" x 7\"",
-        "Paper Weight": "300gsm",
-        "Finish": "Matte",
-        "Customization": "Available",
-        "Production Time": "7-10 business days"
-      }
-    },
-    // Add more products as needed
-  ];
+  const product = getProductDetails(parseInt(id || "1"));
 
-  const product = products.find(p => p.id === parseInt(id || "1")) || products[0];
+  useEffect(() => {
+    if (!product) return;
+    const saved = localStorage.getItem('wishlist');
+    const wishlist = saved ? JSON.parse(saved) : [];
+    setIsInWishlist(wishlist.some((item: any) => item.product_id === product.id));
+  }, [product]);
+
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-dainty-cream via-dainty-pink/5 to-dainty-blue/5">
+        <Header />
+        <div className="container mx-auto px-4 py-8 md:py-12 pt-20 md:pt-24 text-center">
+          <h1 className="font-playfair text-3xl font-bold text-dainty-gray mb-4">Product Not Found</h1>
+          <Button onClick={() => navigate('/products')}>Back to Products</Button>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   const incrementQuantity = () => setQuantity(prev => prev + 1);
   const decrementQuantity = () => setQuantity(prev => prev > 1 ? prev - 1 : 1);
+
+  const handleAddToCart = () => {
+    try {
+      const saved = localStorage.getItem('cart');
+      const cart = saved ? JSON.parse(saved) : [];
+      
+      const existingItem = cart.find((item: any) => item.product_id === product.id);
+      
+      if (existingItem) {
+        existingItem.quantity += quantity;
+        localStorage.setItem('cart', JSON.stringify(cart));
+        toast({
+          title: "Cart Updated",
+          description: `${product.title} quantity updated`,
+        });
+      } else {
+        const newItem = {
+          id: crypto.randomUUID(),
+          product_id: product.id,
+          title: product.title,
+          price: product.price,
+          image: product.images[0],
+          description: product.description,
+          quantity: quantity,
+        };
+        cart.push(newItem);
+        localStorage.setItem('cart', JSON.stringify(cart));
+        toast({
+          title: "Added to Cart",
+          description: `${product.title} has been added to your cart`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add to cart",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleToggleWishlist = () => {
+    try {
+      const saved = localStorage.getItem('wishlist');
+      const wishlist = saved ? JSON.parse(saved) : [];
+      
+      const exists = wishlist.find((item: any) => item.product_id === product.id);
+      
+      if (exists) {
+        const updated = wishlist.filter((item: any) => item.product_id !== product.id);
+        localStorage.setItem('wishlist', JSON.stringify(updated));
+        setIsInWishlist(false);
+        toast({
+          title: "Removed from wishlist",
+          description: `${product.title} has been removed from your wishlist`,
+        });
+      } else {
+        const newItem = {
+          id: crypto.randomUUID(),
+          product_id: product.id,
+          title: product.title,
+          price: product.price,
+          image: product.images[0],
+          description: product.description,
+        };
+        wishlist.push(newItem);
+        localStorage.setItem('wishlist', JSON.stringify(wishlist));
+        setIsInWishlist(true);
+        toast({
+          title: "Added to wishlist",
+          description: `${product.title} has been added to your wishlist`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update wishlist",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dainty-cream via-dainty-pink/5 to-dainty-blue/5">
@@ -168,6 +271,7 @@ const ProductDetail = () => {
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   size="lg"
+                  onClick={handleAddToCart}
                   className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground font-semibold py-4 md:py-6 text-base md:text-lg rounded-xl shadow-[0_10px_40px_-10px_hsl(340_70%_70%_/_0.25)] hover:shadow-[0_20px_60px_-15px_hsl(340_70%_70%_/_0.35)] transition-all duration-500 hover:-translate-y-1 shimmer touch-manipulation min-h-[48px]"
                 >
                   <ShoppingBag className="w-5 h-5 mr-2" />
@@ -176,9 +280,14 @@ const ProductDetail = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="px-6 py-4 md:py-6 rounded-xl border-2 hover:bg-primary/10 touch-manipulation min-h-[48px] min-w-[48px]"
+                  onClick={handleToggleWishlist}
+                  className={`px-6 py-4 md:py-6 rounded-xl border-2 touch-manipulation min-h-[48px] min-w-[48px] ${
+                    isInWishlist 
+                      ? 'bg-primary/10 border-primary text-primary' 
+                      : 'hover:bg-primary/10'
+                  }`}
                 >
-                  <Heart className="w-5 h-5" />
+                  <Heart className={`w-5 h-5 ${isInWishlist ? 'fill-current' : ''}`} />
                 </Button>
               </div>
             </div>
