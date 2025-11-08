@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://daintyhand-backend.test/api';
+// API Base URL from environment variable
+// Development: uses .env.development (VITE_API_URL)
+// Production: uses .env.production (VITE_API_URL)
+// Fallback: production URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://daintyhand-admin.softspiretechnologies.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
