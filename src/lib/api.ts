@@ -12,11 +12,20 @@ const api = axios.create({
 // Add authentication token and session ID interceptors
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth_token');
-  const sessionId = localStorage.getItem('session_id');
+  let sessionId = localStorage.getItem('session_id');
   
+  // Ensure session ID exists (needed for cart/wishlist operations)
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    localStorage.setItem('session_id', sessionId);
+  }
+  
+  // For authenticated users, send both token and session ID
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`;
-  } else if (sessionId) {
+    config.headers['X-Session-ID'] = sessionId;
+  } else {
+    // For guest users, only send session ID
     config.headers['X-Session-ID'] = sessionId;
   }
   

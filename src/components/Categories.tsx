@@ -1,55 +1,102 @@
-
-import { Palette, Heart, Gift, Scissors } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Palette, Heart, Gift, Scissors, Loader2 } from "lucide-react";
 import CategoryCard from "./CategoryCard";
+import { getCategories } from "@/services/api";
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  image?: string;
+  description?: string;
+}
+
+// Icon mapping for categories
+const getCategoryIcon = (categoryName: string) => {
+  const name = categoryName.toLowerCase();
+  if (name.includes('invitation') || name.includes('card')) return Heart;
+  if (name.includes('art') || name.includes('decorative')) return Palette;
+  if (name.includes('gift')) return Gift;
+  return Scissors;
+};
 
 const Categories = () => {
-  const categories = [
-    {
-      title: "Custom Invitations",
-      description: "Elegant wedding invitations, party cards, and special occasion stationery designed to make your moments memorable.",
-      icon: Heart,
-      imageUrl: "https://images.unsplash.com/photo-1596796621994-453375a32338?auto=format&fit=crop&q=80&w=800",
-      delay: 0
-    },
-    {
-      title: "Decorative Art",
-      description: "Hand-painted canvases, wall hangings, and artistic pieces that transform your space into a gallery of beauty.",
-      icon: Palette,
-      imageUrl: "https://images.unsplash.com/photo-1547990251-2bb4e10959b2?auto=format&fit=crop&q=80&w=800",
-      delay: 200
-    },
-    {
-      title: "Handmade Gifts",
-      description: "Unique personalized gifts crafted with attention to detail, perfect for showing someone how much you care.",
-      icon: Gift,
-      imageUrl: "https://images.unsplash.com/photo-1555644026-d25ade221422?auto=format&fit=crop&q=80&w=800",
-      delay: 400
-    },
-    {
-      title: "Paper Crafts",
-      description: "Intricate paper art, scrapbooking elements, and handcrafted paper goods that celebrate the beauty of traditional craftsmanship.",
-      icon: Scissors,
-      imageUrl: "https://images.unsplash.com/photo-1608231387042-89d0ac72c832?auto=format&fit=crop&q=80&w=800",
-      delay: 600
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await getCategories();
+      if (response.success) {
+        // Filter out "All" category
+        const filteredCategories = (response.data || []).filter(
+          (cat: Category) => cat.name.toLowerCase() !== 'all'
+        );
+        setCategories(filteredCategories);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  // Transform API categories to CategoryCard format
+  const transformedCategories = categories.map((category, index) => ({
+    title: category.name,
+    description: category.description || `Explore our beautiful collection of ${category.name.toLowerCase()}`,
+    icon: getCategoryIcon(category.name),
+    imageUrl: category.image || "https://images.unsplash.com/photo-1596796621994-453375a32338?auto=format&fit=crop&q=80&w=800",
+    delay: index * 200
+  }));
+
+  if (loading) {
+    return (
+      <section className="py-12 md:py-20 bg-background">
+        <div className="container px-4 md:px-6">
+          {/* Title and Description Section */}
+          <div className="text-center mb-8 md:mb-12 animate-fade-up">
+            <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-dainty-gray mb-3 md:mb-4">
+              Our Craft <span className="text-gradient">Categories</span>
+            </h2>
+            <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
+              Explore our handpicked selection of beautifully crafted categories
+            </p>
+          </div>
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading categories...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (transformedCategories.length === 0) {
+    return null;
+  }
 
   return (
     <section className="py-12 md:py-20 bg-background">
       <div className="container px-4 md:px-6">
-        {/* Mobile: Horizontal scroll */}
-        <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory hide-scrollbar md:hidden">
-          {categories.map((category) => (
-            <div key={category.title} className="flex-shrink-0 w-[280px] snap-center animate-fade-up">
-              <CategoryCard {...category} />
-            </div>
-          ))}
+        {/* Title and Description Section */}
+        <div className="text-center mb-8 md:mb-12 animate-fade-up">
+          <h2 className="font-playfair text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-dainty-gray mb-3 md:mb-4">
+            Our Craft <span className="text-gradient">Categories</span>
+          </h2>
+          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
+            Explore our handpicked selection of beautifully crafted categories
+          </p>
         </div>
-        
-        {/* Desktop: Grid layout */}
-        <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-          {categories.map((category) => (
-            <div key={category.title} className="animate-fade-up">
+
+        {/* Horizontal scroll for all screen sizes */}
+        <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory hide-scrollbar">
+          {transformedCategories.map((category) => (
+            <div key={category.title} className="flex-shrink-0 w-[280px] md:w-[320px] snap-center animate-fade-up">
               <CategoryCard {...category} />
             </div>
           ))}

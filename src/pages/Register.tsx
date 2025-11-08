@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,7 +36,9 @@ type FormValues = z.infer<typeof formSchema>;
 const Register = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const redirectUrl = searchParams.get('redirect') || '/';
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -64,8 +66,8 @@ const Register = () => {
           title: "Account Created!",
           description: response.message || "Welcome to DaintyHand! Your account has been created successfully.",
         });
-        // Refresh page to update header/auth state
-        window.location.href = "/";
+        // Redirect to the intended page or home
+        navigate(redirectUrl);
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.response?.data?.errors 

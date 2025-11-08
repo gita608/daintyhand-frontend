@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ShoppingBag, Trash2, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
@@ -30,6 +30,7 @@ const Cart = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchCart();
@@ -102,6 +103,23 @@ const Cart = () => {
     const price = item.product?.price || item.price || 0;
     const priceNum = typeof price === 'string' ? parseFloat(price) : price;
     return (priceNum * item.quantity).toFixed(2);
+  };
+
+  const handleCheckout = () => {
+    // Check if user is logged in
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      toast({
+        title: "Login Required",
+        description: "Please login to proceed with checkout",
+        variant: "destructive",
+      });
+      // Redirect to login with return URL
+      navigate('/login?redirect=/checkout');
+    } else {
+      // User is logged in, proceed to checkout
+      navigate('/checkout');
+    }
   };
 
   return (
@@ -242,7 +260,10 @@ const Cart = () => {
                   </div>
                 </div>
 
-                <Button className="w-full bg-primary hover:bg-primary/90 mb-3">
+                <Button 
+                  className="w-full bg-primary hover:bg-primary/90 mb-3"
+                  onClick={handleCheckout}
+                >
                   Proceed to Checkout
                 </Button>
                 

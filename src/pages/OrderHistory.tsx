@@ -7,7 +7,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
 import { getOrders } from "@/services/api";
-import { Package, Calendar, IndianRupee, ArrowLeft, Eye, Loader2 } from "lucide-react";
+import { Package, Calendar, IndianRupee, ArrowLeft, Loader2 } from "lucide-react";
 
 interface Order {
   id: string;
@@ -48,14 +48,35 @@ const OrderHistory = () => {
     try {
       const response = await getOrders();
       if (response.success) {
-        setOrders(response.data || []);
+        // Handle different response structures
+        let ordersData = response.data;
+        
+        // If data is paginated, extract the array
+        if (ordersData && typeof ordersData === 'object' && !Array.isArray(ordersData)) {
+          // Check if it's a paginated response with a 'data' property
+          if (Array.isArray(ordersData.data)) {
+            ordersData = ordersData.data;
+          } else if (Array.isArray(ordersData.orders)) {
+            ordersData = ordersData.orders;
+          } else {
+            // If it's an object but not an array, default to empty array
+            ordersData = [];
+          }
+        }
+        
+        // Ensure it's always an array
+        setOrders(Array.isArray(ordersData) ? ordersData : []);
+      } else {
+        setOrders([]);
       }
     } catch (error: any) {
+      console.error('Error fetching orders:', error);
       toast({
         title: "Error",
         description: error.response?.data?.message || "Failed to fetch orders",
         variant: "destructive",
       });
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -225,17 +246,6 @@ const OrderHistory = () => {
                         </p>
                       </div>
                     )}
-
-                    <div className="mt-6 flex gap-3">
-                      <Button
-                        variant="outline"
-                        onClick={() => navigate(`/order/${order.id}`)}
-                        className="flex-1"
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Details
-                      </Button>
-                    </div>
                   </CardContent>
                 </Card>
               ))}

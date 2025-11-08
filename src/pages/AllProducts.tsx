@@ -214,7 +214,9 @@ const AllProducts = () => {
             >
               All
             </Button>
-            {categories.map((category) => (
+            {categories
+              .filter((category) => category.name.toLowerCase() !== 'all')
+              .map((category) => (
               <Button
                 key={category.id}
                 variant={category.name === selectedCategory ? "default" : "outline"}

@@ -60,13 +60,10 @@ const Header = () => {
   }, [isHomepage, isMobile]);
   
   const handleBackClick = () => {
-    // For product detail pages, navigate to products page
-    if (location.pathname.startsWith('/product/')) {
-      navigate('/products');
-    } else {
-      // For other pages, try to go back, fallback to home
-      navigate(-1);
-    }
+    // Use browser history to go back to the previous page
+    // React Router's navigate(-1) will go back in history
+    // If no history exists, it will stay on current page
+    navigate(-1);
   };
   
   // Don't render header on homepage or on mobile (bottom nav handles mobile)
