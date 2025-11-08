@@ -27,12 +27,17 @@ const api = axios.create({
   },
 });
 
-// Add session ID interceptor for guest users
+// Add authentication token and session ID interceptors
 api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token');
   const sessionId = localStorage.getItem('session_id');
-  if (sessionId) {
+  
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  } else if (sessionId) {
     config.headers['X-Session-ID'] = sessionId;
   }
+  
   return config;
 });
 
@@ -151,6 +156,95 @@ export const submitContact = async (data: {
   message: string;
 }) => {
   const response = await api.post('/contact', data);
+  return response.data;
+};
+
+// Authentication
+export const register = async (data: {
+  name: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+  phone?: string;
+}) => {
+  const response = await api.post('/register', data);
+  if (response.data.success && response.data.data.token) {
+    localStorage.setItem('auth_token', response.data.data.token);
+    localStorage.setItem('user', JSON.stringify(response.data.data.user));
+  }
+  return response.data;
+};
+
+export const login = async (data: {
+  email: string;
+  password: string;
+}) => {
+  const response = await api.post('/login', data);
+  if (response.data.success && response.data.data.token) {
+    localStorage.setItem('auth_token', response.data.data.token);
+    localStorage.setItem('user', JSON.stringify(response.data.data.user));
+  }
+  return response.data;
+};
+
+export const logout = async () => {
+  const response = await api.post('/logout');
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('user');
+  return response.data;
+};
+
+export const getUser = async () => {
+  const response = await api.get('/user');
+  return response.data;
+};
+
+export const updateProfile = async (data: {
+  name: string;
+  phone?: string;
+}) => {
+  const response = await api.put('/user/profile', data);
+  if (response.data.success) {
+    localStorage.setItem('user', JSON.stringify(response.data.data));
+  }
+  return response.data;
+};
+
+export const changePassword = async (data: {
+  current_password: string;
+  password: string;
+  password_confirmation: string;
+}) => {
+  const response = await api.post('/password/change', data);
+  return response.data;
+};
+
+// Orders
+export const createOrder = async (data: {
+  shipping_name: string;
+  shipping_address: string;
+  shipping_city: string;
+  shipping_state: string;
+  shipping_pincode: string;
+  shipping_phone: string;
+  payment_method: 'cod' | 'online' | 'card';
+  notes?: string;
+}) => {
+  const response = await api.post('/orders', data);
+  return response.data;
+};
+
+export const getOrders = async (params?: {
+  status?: string;
+  page?: number;
+  per_page?: number;
+}) => {
+  const response = await api.get('/orders', { params });
+  return response.data;
+};
+
+export const getOrder = async (id: number) => {
+  const response = await api.get(`/orders/${id}`);
   return response.data;
 };
 ```

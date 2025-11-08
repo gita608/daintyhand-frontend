@@ -12,6 +12,10 @@ import CustomOrder from "./pages/CustomOrder";
 import About from "./pages/About";
 import Gallery from "./pages/Gallery";
 import ContactPage from "./pages/ContactPage";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Profile from "./pages/Profile";
+import OrderHistory from "./pages/OrderHistory";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
 import BottomNav from "./components/BottomNav";
@@ -36,6 +40,10 @@ const App = () => (
           <Route path="/about" element={<About />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/orders" element={<OrderHistory />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

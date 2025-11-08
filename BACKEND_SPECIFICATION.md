@@ -1,7 +1,33 @@
 # Backend API Specification for DaintyHand E-commerce Platform
 
+## Quick Reference for AI Implementation
+
+**Task:** Build Laravel 10+ REST API with MySQL for React e-commerce frontend.
+
+**Key Points:**
+- Use Laravel Sanctum for authentication (token-based)
+- Support both guest users (session_id) and authenticated users (user_id)
+- Merge guest cart when user registers/logs in
+- All endpoints return JSON with consistent format
+- CORS enabled for React frontend
+
+**Required Endpoints:**
+- Products: GET /api/products, GET /api/products/{id}, GET /api/categories
+- Cart: GET/POST/PUT/DELETE /api/cart (works for guests and users)
+- Wishlist: GET/POST/DELETE /api/wishlist (works for guests and users)
+- Auth: POST /api/register, POST /api/login, POST /api/logout, GET /api/user, PUT /api/user/profile, POST /api/password/change
+- Orders: POST /api/orders, GET /api/orders, GET /api/orders/{id}
+- Custom Orders: POST /api/custom-orders
+- Contact: POST /api/contact
+
+**Database:** 12 tables (products, product_images, product_features, product_specifications, users, cart_items, wishlist_items, orders, order_items, custom_orders, contact_messages, categories)
+
+**See full specification below for complete details.**
+
+---
+
 ## Project Overview
-Build a Laravel 10+ REST API backend with MySQL database for the DaintyHand e-commerce frontend (React/TypeScript). The backend should handle products, cart, wishlist, custom orders, and contact form submissions.
+Build a Laravel 10+ REST API backend with MySQL database for the DaintyHand e-commerce frontend (React/TypeScript). The backend should handle products, cart, wishlist, custom orders, contact form submissions, and user authentication.
 
 ---
 
@@ -9,9 +35,17 @@ Build a Laravel 10+ REST API backend with MySQL database for the DaintyHand e-co
 - **Framework:** Laravel 10+ (or latest stable)
 - **Database:** MySQL 8.0+
 - **API:** RESTful JSON API
-- **Authentication:** Laravel Sanctum (for future user authentication)
+- **Authentication:** Laravel Sanctum (Token-based API authentication)
 - **CORS:** Configured for React frontend
 - **Validation:** Laravel Form Requests
+
+## Authentication Strategy
+
+**Hybrid Approach:**
+- **Guest Users:** Can use cart/wishlist with `session_id` (no signup required)
+- **Registered Users:** Can login/register for full account features
+- **Cart Merging:** When guest user registers/logs in, merge their guest cart to their account
+- **Both work:** Cart/wishlist work for both guests (session_id) and logged-in users (user_id)
 
 ---
 
@@ -65,10 +99,10 @@ Build a Laravel 10+ REST API backend with MySQL database for the DaintyHand e-co
 ### 5. **users** table (Laravel default + additions)
 ```sql
 - id (bigint, primary key, auto increment)
-- name (string, 255)
-- email (string, 255, unique)
+- name (string, 255, required)
+- email (string, 255, unique, required)
 - email_verified_at (timestamp, nullable)
-- password (string, 255)
+- password (string, 255, required)
 - phone (string, 20, nullable)
 - remember_token (string, 100, nullable)
 - created_at (timestamp)
@@ -76,6 +110,7 @@ Build a Laravel 10+ REST API backend with MySQL database for the DaintyHand e-co
 ```
 
 ### 6. **cart_items** table
+**Hybrid: Works for both guest (session_id) and logged-in users (user_id)**
 ```sql
 - id (bigint, primary key, auto increment)
 - user_id (bigint, foreign key -> users.id, nullable) -- For logged-in users
@@ -84,18 +119,23 @@ Build a Laravel 10+ REST API backend with MySQL database for the DaintyHand e-co
 - quantity (integer, default 1, min 1)
 - created_at (timestamp)
 - updated_at (timestamp)
-- UNIQUE KEY (user_id, product_id) or (session_id, product_id)
+- UNIQUE KEY unique_user_product (user_id, product_id) -- When user_id is not null
+- UNIQUE KEY unique_session_product (session_id, product_id) -- When session_id is not null
+- CHECK: Either user_id OR session_id must be present (not both null)
 ```
 
 ### 7. **wishlist_items** table
+**Hybrid: Works for both guest (session_id) and logged-in users (user_id)**
 ```sql
 - id (bigint, primary key, auto increment)
-- user_id (bigint, foreign key -> users.id, nullable)
-- session_id (string, 100, nullable)
+- user_id (bigint, foreign key -> users.id, nullable) -- For logged-in users
+- session_id (string, 100, nullable) -- For guest users
 - product_id (bigint, foreign key -> products.id, on delete cascade)
 - created_at (timestamp)
 - updated_at (timestamp)
-- UNIQUE KEY (user_id, product_id) or (session_id, product_id)
+- UNIQUE KEY unique_user_product (user_id, product_id) -- When user_id is not null
+- UNIQUE KEY unique_session_product (session_id, product_id) -- When session_id is not null
+- CHECK: Either user_id OR session_id must be present (not both null)
 ```
 
 ### 8. **custom_orders** table
@@ -127,7 +167,43 @@ Build a Laravel 10+ REST API backend with MySQL database for the DaintyHand e-co
 - updated_at (timestamp)
 ```
 
-### 10. **categories** table (optional, for better category management)
+### 10. **orders** table
+```sql
+- id (bigint, primary key, auto increment)
+- user_id (bigint, foreign key -> users.id, on delete cascade)
+- order_number (string, 50, unique, required) -- e.g., "ORD-2024-001234"
+- total (decimal 10,2, required)
+- subtotal (decimal 10,2, required)
+- tax (decimal 10,2, default 0)
+- shipping (decimal 10,2, default 0)
+- status (enum: 'pending', 'processing', 'shipped', 'delivered', 'cancelled', default 'pending')
+- payment_status (enum: 'pending', 'paid', 'failed', 'refunded', default 'pending')
+- payment_method (string, 50, nullable) -- e.g., 'cod', 'online', 'card'
+- shipping_name (string, 255, required)
+- shipping_address (text, required)
+- shipping_city (string, 100, required)
+- shipping_state (string, 100, required)
+- shipping_pincode (string, 10, required)
+- shipping_phone (string, 20, required)
+- notes (text, nullable)
+- created_at (timestamp)
+- updated_at (timestamp)
+```
+
+### 11. **order_items** table
+```sql
+- id (bigint, primary key, auto increment)
+- order_id (bigint, foreign key -> orders.id, on delete cascade)
+- product_id (bigint, foreign key -> products.id)
+- title (string, 255, required) -- Store product title at time of order
+- price (decimal 10,2, required) -- Store price at time of order
+- quantity (integer, default 1, min 1)
+- image (string, 500, nullable) -- Store product image at time of order
+- created_at (timestamp)
+- updated_at (timestamp)
+```
+
+### 12. **categories** table (optional, for better category management)
 ```sql
 - id (bigint, primary key, auto increment)
 - name (string, 100, unique, required)
@@ -281,10 +357,11 @@ Error responses:
 
 ### GET /api/cart
 **Description:** Get user's cart items
-**Authentication:** Optional (use session_id for guests)
+**Authentication:** Optional - Uses Bearer token if logged in, or X-Session-ID for guests
 
 **Headers:**
-- `X-Session-ID` (optional): For guest users
+- `Authorization: Bearer {token}` (optional): For logged-in users
+- `X-Session-ID` (optional): For guest users (if not authenticated)
 
 **Response:**
 ```json
@@ -367,6 +444,11 @@ Error responses:
 
 ### GET /api/wishlist
 **Description:** Get user's wishlist items
+**Authentication:** Optional - Uses Bearer token if logged in, or X-Session-ID for guests
+
+**Headers:**
+- `Authorization: Bearer {token}` (optional): For logged-in users
+- `X-Session-ID` (optional): For guest users (if not authenticated)
 
 **Response:**
 ```json
@@ -505,6 +587,334 @@ Error responses:
 
 ---
 
+## 6. AUTHENTICATION API
+
+### POST /api/register
+**Description:** Register a new user
+
+**Request Body:**
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "password123",
+  "password_confirmation": "password123",
+  "phone": "+91 98765 43210"
+}
+```
+
+**Validation Rules:**
+- name: required, string, min:2, max:255
+- email: required, email, unique:users
+- password: required, string, min:8, confirmed
+- phone: nullable, string, min:10
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "User registered successfully",
+  "data": {
+    "user": {
+      "id": 1,
+      "name": "John Doe",
+      "email": "john@example.com",
+      "phone": "+91 98765 43210"
+    },
+    "token": "1|abcdef123456...",
+    "cart_merged": true  // If guest cart was merged
+  }
+}
+```
+
+**Cart Merging Logic:**
+- When user registers, check if they have guest cart (by session_id)
+- If yes, merge guest cart items to user's account
+- Update cart_items: set user_id, clear session_id
+- Return `cart_merged: true` in response
+
+### POST /api/login
+**Description:** Login user
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+
+**Validation Rules:**
+- email: required, email
+- password: required, string
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "user": {
+      "id": 1,
+      "name": "John Doe",
+      "email": "john@example.com",
+      "phone": "+91 98765 43210"
+    },
+    "token": "1|abcdef123456...",
+    "cart_merged": true  // If guest cart was merged
+  }
+}
+```
+
+**Cart Merging Logic:**
+- Same as register - merge guest cart when user logs in
+
+### POST /api/logout
+**Description:** Logout user (revoke token)
+**Authentication:** Required
+
+**Headers:**
+- `Authorization: Bearer {token}`
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
+### GET /api/user
+**Description:** Get authenticated user profile
+**Authentication:** Required
+
+**Headers:**
+- `Authorization: Bearer {token}`
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": "+91 98765 43210",
+    "email_verified_at": "2024-01-15T10:30:00.000000Z",
+    "created_at": "2024-01-15T10:30:00.000000Z"
+  }
+}
+```
+
+### PUT /api/user/profile
+**Description:** Update user profile
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "name": "John Updated",
+  "phone": "+91 98765 43211"
+}
+```
+
+**Validation Rules:**
+- name: required, string, min:2, max:255
+- phone: nullable, string, min:10
+- email: cannot be changed via this endpoint
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Profile updated successfully",
+  "data": {
+    "id": 1,
+    "name": "John Updated",
+    "email": "john@example.com",
+    "phone": "+91 98765 43211"
+  }
+}
+```
+
+### POST /api/password/change
+**Description:** Change user password
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "current_password": "oldpassword123",
+  "password": "newpassword123",
+  "password_confirmation": "newpassword123"
+}
+```
+
+**Validation Rules:**
+- current_password: required, must match user's current password
+- password: required, string, min:8, confirmed
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Password changed successfully"
+}
+```
+
+---
+
+## 7. ORDERS API
+
+### POST /api/orders
+**Description:** Create order from cart
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "shipping_name": "John Doe",
+  "shipping_address": "123 Main Street",
+  "shipping_city": "Mumbai",
+  "shipping_state": "Maharashtra",
+  "shipping_pincode": "400001",
+  "shipping_phone": "+91 98765 43210",
+  "payment_method": "cod",
+  "notes": "Please deliver before 5 PM"
+}
+```
+
+**Validation Rules:**
+- shipping_name: required, string, min:2, max:255
+- shipping_address: required, string, min:5
+- shipping_city: required, string, min:2, max:100
+- shipping_state: required, string, min:2, max:100
+- shipping_pincode: required, string, min:6, max:10
+- shipping_phone: required, string, min:10
+- payment_method: required, string, in:cod,online,card
+- notes: nullable, string
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Order placed successfully",
+  "data": {
+    "id": 1,
+    "order_number": "ORD-2024-001234",
+    "total": "25000.00",
+    "status": "pending",
+    "payment_status": "pending",
+    "created_at": "2024-01-15T10:30:00.000000Z"
+  }
+}
+```
+
+**Logic:**
+- Get all cart items for authenticated user
+- Calculate total from cart items
+- Create order with shipping details
+- Create order_items from cart items
+- Clear user's cart after order creation
+- Generate unique order_number (format: ORD-YYYY-NNNNNN)
+
+### GET /api/orders
+**Description:** Get user's order history
+**Authentication:** Required
+
+**Query Parameters:**
+- `status` (optional): Filter by status
+- `page` (optional): Page number for pagination
+- `per_page` (optional): Items per page (default: 10)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "current_page": 1,
+    "data": [
+      {
+        "id": 1,
+        "order_number": "ORD-2024-001234",
+        "total": "25000.00",
+        "status": "processing",
+        "payment_status": "paid",
+        "items": [
+          {
+            "id": 1,
+            "product_id": 1,
+            "title": "Floral Wedding Invitation Set",
+            "price": "10000.00",
+            "quantity": 2,
+            "image": "https://images.unsplash.com/..."
+          }
+        ],
+        "shipping_address": {
+          "name": "John Doe",
+          "address": "123 Main Street",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400001",
+          "phone": "+91 98765 43210"
+        },
+        "created_at": "2024-01-15T10:30:00.000000Z"
+      }
+    ],
+    "total": 5,
+    "per_page": 10,
+    "last_page": 1
+  }
+}
+```
+
+### GET /api/orders/{id}
+**Description:** Get single order details
+**Authentication:** Required
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "order_number": "ORD-2024-001234",
+    "total": "25000.00",
+    "subtotal": "20000.00",
+    "tax": "3600.00",
+    "shipping": "1400.00",
+    "status": "processing",
+    "payment_status": "paid",
+    "payment_method": "cod",
+    "items": [
+      {
+        "id": 1,
+        "product_id": 1,
+        "title": "Floral Wedding Invitation Set",
+        "price": "10000.00",
+        "quantity": 2,
+        "image": "https://images.unsplash.com/..."
+      }
+    ],
+    "shipping_address": {
+      "name": "John Doe",
+      "address": "123 Main Street",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "pincode": "400001",
+      "phone": "+91 98765 43210"
+    },
+    "notes": "Please deliver before 5 PM",
+    "created_at": "2024-01-15T10:30:00.000000Z",
+    "updated_at": "2024-01-15T11:00:00.000000Z"
+  }
+}
+```
+
+**Note:** User can only view their own orders. Return 404 if order doesn't exist or doesn't belong to user.
+
+---
+
 ## Implementation Requirements
 
 ### 1. CORS Configuration
@@ -517,32 +927,50 @@ Configure CORS to allow requests from React frontend:
 'supports_credentials' => true,
 ```
 
-### 2. Session Management for Guests
-- Generate unique session_id for guest users
-- Store in cookie or return in response for frontend to store
-- Use session_id to track cart/wishlist for non-authenticated users
+### 2. Authentication with Laravel Sanctum
+- Install and configure Laravel Sanctum
+- Users get token on login/register
+- Token stored in frontend (localStorage)
+- Send token in `Authorization: Bearer {token}` header
+- Protected routes use `auth:sanctum` middleware
 
-### 3. Price Formatting
+### 3. Session Management for Guests
+- **Guest users can shop without authentication**
+- Frontend generates session_id (UUID) and stores in localStorage
+- Frontend sends `X-Session-ID` header for guest cart/wishlist
+- Backend uses session_id to identify guest users
+- When guest registers/logs in, merge their cart to account
+
+### 4. Cart Merging Logic
+When user registers or logs in:
+1. Check if request has `X-Session-ID` header
+2. Find all cart_items with that session_id
+3. Update them: set user_id = authenticated user's id, clear session_id
+4. Handle duplicates (if user already has same product, merge quantities)
+5. Do the same for wishlist_items
+6. Return `cart_merged: true` in response
+
+### 5. Price Formatting
 - Store prices as decimal in database (e.g., 10000.00)
 - Frontend will format as ₹10,000
 - API returns price as string or decimal
 
-### 4. Image Handling
+### 6. Image Handling
 - For now, store image URLs (frontend uses Unsplash)
 - Later: Add file upload capability for product images
 
-### 5. Validation
+### 7. Validation
 - Use Laravel Form Requests for validation
 - Return validation errors in consistent format
 - Validate all required fields
 
-### 6. Error Handling
+### 8. Error Handling
 - Use try-catch blocks
 - Return consistent error format
 - Log errors for debugging
 - Return appropriate HTTP status codes (200, 201, 400, 404, 500)
 
-### 7. Database Seeding
+### 9. Database Seeding
 Create seeder to populate initial products:
 - Seed all 12 products from frontend data
 - Add sample images, features, specifications
@@ -582,6 +1010,8 @@ php artisan make:migration create_product_features_table
 php artisan make:migration create_product_specifications_table
 php artisan make:migration create_cart_items_table
 php artisan make:migration create_wishlist_items_table
+php artisan make:migration create_orders_table
+php artisan make:migration create_order_items_table
 php artisan make:migration create_custom_orders_table
 php artisan make:migration create_contact_messages_table
 ```
@@ -594,6 +1024,8 @@ php artisan make:model ProductFeature
 php artisan make:model ProductSpecification
 php artisan make:model CartItem
 php artisan make:model WishlistItem
+php artisan make:model Order
+php artisan make:model OrderItem
 php artisan make:model CustomOrder
 php artisan make:model ContactMessage
 ```
@@ -603,8 +1035,11 @@ php artisan make:model ContactMessage
 php artisan make:controller Api/ProductController
 php artisan make:controller Api/CartController
 php artisan make:controller Api/WishlistController
+php artisan make:controller Api/OrderController
 php artisan make:controller Api/CustomOrderController
 php artisan make:controller Api/ContactController
+php artisan make:controller Api/AuthController
+php artisan make:controller Api/UserController
 ```
 
 ### 7. Create Form Requests (Validation)
@@ -613,33 +1048,55 @@ php artisan make:request StoreCustomOrderRequest
 php artisan make:request StoreContactRequest
 php artisan make:request StoreCartItemRequest
 php artisan make:request UpdateCartItemRequest
+php artisan make:request StoreOrderRequest
+php artisan make:request RegisterRequest
+php artisan make:request LoginRequest
+php artisan make:request UpdateProfileRequest
+php artisan make:request ChangePasswordRequest
 ```
 
 ### 8. API Routes
 Create `routes/api.php`:
 ```php
 Route::prefix('api')->group(function () {
+    // Public Routes
     // Products
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/{id}', [ProductController::class, 'show']);
     Route::get('/categories', [ProductController::class, 'categories']);
     
-    // Cart
+    // Authentication
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
+    
+    // Custom Orders (public)
+    Route::post('/custom-orders', [CustomOrderController::class, 'store']);
+    
+    // Contact (public)
+    Route::post('/contact', [ContactController::class, 'store']);
+    
+    // Guest Routes (work with session_id)
     Route::get('/cart', [CartController::class, 'index']);
     Route::post('/cart', [CartController::class, 'store']);
     Route::put('/cart/{id}', [CartController::class, 'update']);
     Route::delete('/cart/{id}', [CartController::class, 'destroy']);
     
-    // Wishlist
     Route::get('/wishlist', [WishlistController::class, 'index']);
     Route::post('/wishlist', [WishlistController::class, 'store']);
     Route::delete('/wishlist/{id}', [WishlistController::class, 'destroy']);
     
-    // Custom Orders
-    Route::post('/custom-orders', [CustomOrderController::class, 'store']);
-    
-    // Contact
-    Route::post('/contact', [ContactController::class, 'store']);
+    // Protected Routes (require authentication)
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/logout', [AuthController::class, 'logout']);
+        Route::get('/user', [UserController::class, 'show']);
+        Route::put('/user/profile', [UserController::class, 'updateProfile']);
+        Route::post('/password/change', [UserController::class, 'changePassword']);
+        
+        // Orders
+        Route::post('/orders', [OrderController::class, 'store']);
+        Route::get('/orders', [OrderController::class, 'index']);
+        Route::get('/orders/{id}', [OrderController::class, 'show']);
+    });
 });
 ```
 
@@ -700,33 +1157,30 @@ const addToCart = async (productId: number, quantity: number) => {
 
 ## Additional Features (Optional for Future)
 
-1. **User Authentication**
-   - Register/Login endpoints
-   - Password reset
-   - Email verification
-
-2. **Product Reviews**
+1. **Product Reviews**
    - Add review endpoint
    - Get product reviews
 
-3. **Order Management**
+2. **Order Management**
    - Create orders from cart
    - Order history
    - Order status tracking
 
-4. **Admin Panel**
+3. **Admin Panel**
    - Manage products
    - View custom orders
    - View contact messages
    - Manage categories
 
-5. **Image Upload**
+4. **Image Upload**
    - Upload product images
    - Image storage (local/S3)
 
-6. **Email Notifications**
+5. **Email Notifications**
    - Send email on custom order submission
    - Send email on contact form submission
+   - Email verification on registration
+   - Password reset emails
 
 ---
 

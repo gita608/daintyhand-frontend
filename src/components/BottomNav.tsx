@@ -1,11 +1,19 @@
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Heart, ShoppingBag, Package, Sparkles } from "lucide-react";
+import { Home, Heart, ShoppingBag, Package, Sparkles, User, LogIn } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const BottomNav = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
   const isHomepage = location.pathname === "/";
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Check if user is logged in
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    setIsLoggedIn(!!token);
+  }, [location.pathname]);
 
   // Don't show bottom nav on desktop or on homepage
   if (!isMobile || isHomepage) {
@@ -17,7 +25,11 @@ const BottomNav = () => {
     { icon: Package, label: "Products", path: "/products" },
     { icon: Sparkles, label: "Custom", path: "/custom-order" },
     { icon: Heart, label: "Wishlist", path: "/wishlist" },
-    { icon: ShoppingBag, label: "Cart", path: "/cart" },
+    { 
+      icon: isLoggedIn ? User : LogIn, 
+      label: isLoggedIn ? "Profile" : "Login", 
+      path: isLoggedIn ? "/profile" : "/login" 
+    },
   ];
 
   return (

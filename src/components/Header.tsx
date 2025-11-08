@@ -1,7 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Heart, ShoppingBag, ArrowLeft } from "lucide-react";
+import { Heart, ShoppingBag, ArrowLeft, User, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Header = () => {
@@ -10,12 +17,24 @@ const Header = () => {
   const isMobile = useIsMobile();
   const [isVisible, setIsVisible] = useState(true);
   const lastScrollY = useRef(0);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<any>(null);
   
   // Hide header on homepage for cleaner look
   const isHomepage = location.pathname === "/";
   
   // Show back button on all pages except home
   const showBackButton = location.pathname !== "/";
+
+  // Check if user is logged in
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    const userData = localStorage.getItem('user');
+    setIsLoggedIn(!!token);
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+  }, [location.pathname]);
   
   // Scroll detection for auto-hide/show
   useEffect(() => {
@@ -90,6 +109,52 @@ const Header = () => {
               <ShoppingBag className="w-5 h-5" />
             </Button>
           </Link>
+          
+          {isLoggedIn ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <User className="w-5 h-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <div className="px-2 py-1.5 text-sm font-semibold">
+                  {user?.name || 'User'}
+                </div>
+                <div className="px-2 py-1 text-xs text-muted-foreground">
+                  {user?.email}
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="cursor-pointer">
+                    <User className="w-4 h-4 mr-2" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => {
+                    localStorage.removeItem('auth_token');
+                    localStorage.removeItem('user');
+                    setIsLoggedIn(false);
+                    setUser(null);
+                    navigate('/');
+                  }}
+                  className="cursor-pointer text-destructive"
+                >
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Log Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link to="/login">
+              <Button variant="ghost" size="sm" className="gap-2">
+                <LogIn className="w-4 h-4" />
+                <span className="hidden sm:inline">Login</span>
+              </Button>
+            </Link>
+          )}
         </nav>
       </div>
     </header>
