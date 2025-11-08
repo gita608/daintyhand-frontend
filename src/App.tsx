@@ -9,6 +9,9 @@ import AllProducts from "./pages/AllProducts";
 import Wishlist from "./pages/Wishlist";
 import Cart from "./pages/Cart";
 import CustomOrder from "./pages/CustomOrder";
+import About from "./pages/About";
+import Gallery from "./pages/Gallery";
+import ContactPage from "./pages/ContactPage";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
 import BottomNav from "./components/BottomNav";
@@ -30,6 +33,9 @@ const App = () => (
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/custom-order" element={<CustomOrder />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/contact" element={<ContactPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
