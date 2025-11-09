@@ -67,13 +67,15 @@ const Hero = () => {
       </div>
       
       {/* Arrow button - positioned relative to section */}
-      <button 
-        onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
-        className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-20 animate-bounce-gentle hover:scale-110 transition-transform cursor-pointer p-2 md:p-3 rounded-full hover:bg-primary/10"
-        aria-label="Scroll to content"
-      >
-        <ArrowDown className="w-5 h-5 md:w-7 md:h-7 text-primary opacity-80" />
-      </button>
+      <div className="absolute bottom-6 md:bottom-8 left-0 right-0 flex justify-center z-20">
+        <button 
+          onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
+          className="animate-bounce-gentle hover:scale-110 transition-transform cursor-pointer p-2 md:p-3 rounded-full hover:bg-primary/10"
+          aria-label="Scroll to content"
+        >
+          <ArrowDown className="w-5 h-5 md:w-7 md:h-7 text-primary opacity-80" />
+        </button>
+      </div>
     </section>
   );
 };
